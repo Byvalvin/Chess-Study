@@ -1,0 +1,1566 @@
+
+class Game{
+  ArrayList<Piece> Register = new ArrayList<Piece>();
+  int moves = 0;
+  
+  boolean game_on = true;
+  Player P1,P2;
+  Board CBoard;
+  
+  int turn = 0; // P1 strarts
+  
+  int army = 16;
+  
+  // Promotion attribute
+  boolean promotionW = false; boolean promotionB = false;
+  boolean promoted = false;
+  Sq pSq;
+  Piece promoted_pawn;
+  
+  Game(Player one, Player two, Board MyBoard){
+    P1 = one; P2 = two;
+    CBoard = MyBoard;
+    
+    // put players pieces on board
+    
+  }
+  
+  void play(){
+    
+  }
+  void upMoves(){
+    moves++;
+  }
+  void reset_moves(){
+    moves=Register.size();
+  }
+  int getMoves(){
+    return moves;
+  }
+  void updateReg(Piece p){
+    //Register.clear();
+    if(p.IsSelected()){
+      Register.add(p);
+    }
+  }
+  
+  ArrayList<Piece> getReg(){
+    return Register;
+  }
+  
+  void cap(Piece attacked, Sq battleSq){
+    int ad_c = attacked.getC();
+    //println("Capped colout is ",ad_c);
+    Piece slain = battleSq.getPiece();
+      
+    //println("slain v a",slain.getClass(),attacked.getClass());
+    if(slain.getClass() != King.class){
+      
+      slain.setCapture(true);
+    
+      if(ad_c!=P1.getC()){
+        // white(P1) is attacking
+        P1.add_prisoner(slain); P2.lostSoldier(slain);
+        
+        //println("MEEEEEEEEEEEEEEEEE");
+        //battleSq.movedPiece();
+      
+      }else{
+        // (P2)black attack
+        P2.add_prisoner(slain); P1.lostSoldier(slain);
+        
+        //println("YOOOOOOOOOOOOOOOOOOOOOOOU");
+        
+        //battleSq.movedPiece();
+      }
+      
+      battleSq.movedPiece();
+    }
+    
+    
+    // dont forget to update
+    CBoard.update();
+    
+    
+  }
+  
+  void revcap(Piece attacker, Sq battleSq, boolean enPass){
+    Sq[][] S = CBoard.getSquares();
+    
+    int at_c = attacker.getC();
+    //Player Attacker = getPlayer(at_c);
+    //println("Capped colout is ",ad_c);
+    Piece restored;
+  
+    if(at_c==P1.getC()){
+      // white(P1) attacked
+      restored = P1.release_prisoner();
+      P2.returnedSoldier(restored);
+      
+    
+    }else{
+      // (P2)black attacked
+      
+      restored = P2.release_prisoner(); 
+      P1.returnedSoldier(restored);
+      
+
+    }
+    
+    if(enPass){ // ENPASSING CAPTURES
+      Sq passantSq;
+      int bScoord[] = battleSq.get_matrix_loc();
+      if(at_c==P1.getC()){ // black was captured -> 1 up the board
+        passantSq = S[ bScoord[0] ][ bScoord[1]-1 ];
+        
+      }else{ // white was captured -> 1 down the board
+        passantSq = S[ bScoord[0] ][ bScoord[1]+1 ];
+      }
+      passantSq.setPiece(restored);
+      
+    }else{ // REGULAR CAPTURES
+      battleSq.setPiece(restored);
+    }
+  
+    
+    
+    // dont forget to update
+    CBoard.update();
+  }
+  
+  boolean sameC(Piece A, Piece B){
+    return A.getC()==B.getC();
+  }
+  
+  //void KingAttack(int colour, ArrayList<Sq> KingMoveList){// edit the mocve list of the king(s)
+  //  int p = 0;
+  //  ArrayList<Sq> currMoves;
+  //  Piece P; Sq move;
+    
+  //  if(colour==0){// black king
+      
+  //    ArrayList<Piece> WPieces = P1.getPieces();
+
+  //    while(p<army && KingMoveList.size()>0){// go over each piece
+  //      //go through P1(white pieces)
+  //      P = WPieces.get(p);
+        
+  //      if(P.active()){
+  //        currMoves = P.getMoves();
+          
+  //        for(int m=0; m<currMoves.size(); m++){// gover over the ACTIVE piecs moves
+  //          move = currMoves.get(m);
+  //          if( KingMoveList.contains(move) && KingMoveList.indexOf(move)!=0 ){
+  //            KingMoveList.remove(move);
+  //          }
+  //        }
+  //      }
+  //      p++;
+  //    }
+      
+      
+  //  }else{
+      
+  //    ArrayList<Piece> BPieces = P2.getPieces();
+
+  //    while(p<army && KingMoveList.size()>0){ //over each ACTIVE piece
+  //      //go through P2(blackpieces)
+  //      P = BPieces.get(p);
+        
+  //      if(P.active()){
+  //        currMoves = P.getMoves();
+          
+  //        for(int m=0; m<currMoves.size(); m++){ // over pieces moves
+  //          move = currMoves.get(m);
+  //          if( KingMoveList.contains(move) && KingMoveList.indexOf(move)!=0 ){
+  //            KingMoveList.remove(move);
+  //          }
+            
+  //        }
+  //      }
+  //      p++;
+  //    }
+      
+  //  }
+    
+    
+  //}
+  
+  void KingAttack(){//1) edit the mocve list of the king(s) -> if a sq is available to both, remove it in both
+    ArrayList<Sq> SamesMoveList = new ArrayList<Sq>();// to keep the same moves
+    Sq move;
+    
+    ArrayList<Piece> WPieces = P1.getPieces();
+    ArrayList<Piece> BPieces = P2.getPieces();
+    
+    Piece WKing = WPieces.get(0);
+    Piece BKing = BPieces.get(0);
+    
+    ArrayList<Sq> WKingMoveList = WKing.getMoves();
+    ArrayList<Sq> BKingMoveList = BKing.getMoves();
+    
+    int[] WKingLoc = WKingMoveList.get(0).get_matrix_loc();
+    ArrayList<Sq> AllWmoves = CBoard.nearBySquares(WKingLoc[0], WKingLoc[1]);
+    
+    int[] BKingLoc = BKingMoveList.get(0).get_matrix_loc();
+    ArrayList<Sq> AllBmoves = CBoard.nearBySquares(BKingLoc[0], BKingLoc[1]);
+    
+    // remove white moves from black king moves
+    for(int w=0; w<AllWmoves.size(); w++){
+      move = AllWmoves.get(w);
+      if( BKingMoveList.contains(move) ){
+        BKing.getMoves().remove(move);
+      }
+    }
+    
+    
+    // remove black moves from white king moves
+    for(int b=0; b<AllBmoves.size(); b++){
+      move = AllBmoves.get(b);
+      if( WKingMoveList.contains(move) ){
+        WKing.getMoves().remove(move);
+      }
+    }
+    
+    
+    
+    // 2)take away defended pieces as moves
+    Piece aP;
+    ArrayList<Sq> trash = new ArrayList<Sq>();
+    
+    ArrayList<Sq> Wmoves = WKing.getMoves(); ArrayList<Sq> Bmoves = BKing.getMoves();
+    int nWmoves = Wmoves.size(); int nBmoves = Bmoves.size();
+    
+    // WHITE KING
+    
+    for(int w = 1; w<nWmoves; w++){
+      move = Wmoves.get(w);
+      if(move.hasPiece()){
+        aP = move.getPiece();
+        if(!sameC(WKing,aP) && defended(aP)){
+          trash.add(move);
+        }
+      }else{
+        
+      }
+    }
+    for(int i=0; i<trash.size();i++){
+      if( Wmoves.contains(trash.get(i)) ){
+        WKing.getMoves().remove(trash.get(i));
+      }
+    }
+    
+    trash.clear();
+    
+    // BLACK KING
+    
+    for(int b = 1; b<nBmoves; b++){
+      move = Bmoves.get(b);
+      if(move.hasPiece()){
+        aP = move.getPiece();
+        if(!sameC(BKing,aP) && defended(aP)){
+          trash.add(move);
+        }
+      }
+    }
+    for(int i=0; i<trash.size();i++){
+      if( Bmoves.contains(trash.get(i)) ){
+        BKing.getMoves().remove(trash.get(i));
+      }
+    }
+    
+    // 3) attacked sq
+    attack(0); attack(255);
+    
+    // 4) special case
+    
+    
+ 
+    
+  }
+  
+  void attack(int colour){
+    // 3)finally, take away attacked sqs
+    Sq move; int all;
+    
+    ArrayList<Sq> trash = new ArrayList<Sq>();
+    
+    if(colour==0){
+      //BLACK OFFENSE
+      Piece WKing = P1.getPieces().get(0);
+      ArrayList<Sq> Wmoves = WKing.getMoves();
+      int nWmoves = Wmoves.size();
+  
+      for(int w = 0; w<nWmoves; w++){
+        move = Wmoves.get(w);
+        
+        if( P2.attacked(move, CBoard.getSquares()) ){
+          trash.add(move);
+        }
+      }
+      all = trash.size();
+      for(int t=0; t<all; t++){
+        move = trash.get(t);
+        if(WKing.getMoves().contains(move) && WKing.getMoves().indexOf(move)!=0){
+          WKing.getMoves().remove(move);
+        }
+      }
+      
+      
+    }else{
+    
+      //trash.clear();
+      
+      //WHITE OFFENSE
+      Piece BKing = P2.getPieces().get(0);
+      ArrayList<Sq> Bmoves = BKing.getMoves();
+      int nBmoves = Bmoves.size();
+  
+      for(int b = 0; b<nBmoves; b++){
+        move = Bmoves.get(b);
+        
+        if( P1.attacked(move, CBoard.getSquares()) ){
+          trash.add(move);
+        }
+      }
+      all = trash.size();
+      for(int t=0; t<all; t++){
+        move = trash.get(t);
+        if(BKing.getMoves().contains(move) && BKing.getMoves().indexOf(move)!=0){
+          BKing.getMoves().remove(move);
+        }
+      }
+      
+    }
+    
+    
+  }
+  
+  
+  boolean defended(Piece P){
+    
+    boolean D = false;
+    
+    Sq mySq = P.getCurrSq();
+    
+    //ArrayList<Sq>trash = new ArrayList<Sq>();
+    Piece currPiece;
+    ArrayList<Piece>WPieces = P1.getPieces(); ArrayList<Piece>BPieces = P2.getPieces(); 
+    
+    if(P.getC()==P1.getC()){// check if ANY of my teammates have my square as a move
+      // WHITE DEFENSE
+      int w=0;
+      while(!D && w<WPieces.size()){
+        currPiece = WPieces.get(w);
+        if(currPiece.active() && currPiece != P){
+          D = currPiece.getMoves().contains(mySq);
+        }
+        
+        w++;
+      }
+      
+    }else{
+      // BLACK DEFENSE
+      int b=0;
+      while(!D && b<BPieces.size()){
+        currPiece = BPieces.get(b);
+        if(currPiece.active() && currPiece != P){
+          D = currPiece.getMoves().contains(mySq);
+        }
+        
+        b++;
+      }
+      
+    }
+    
+    
+    
+    return D;
+  }
+  
+  void checks(){ // check if the piece that moved checked the opposing king
+    boolean foundCheck1 = false; boolean foundCheck2 = false;
+    int p=1; int q=1;
+    
+    Piece aP;
+    
+    // checks if white(currently playing) is in check
+    Piece WKing = P1.getPieces().get(0);
+    ArrayList<Piece>BPieces = P2.getPieces();
+    
+    while(!foundCheck1 && p<army){
+      aP = BPieces.get(p);
+      if(aP.active()){
+        if( aP.getMoves().contains(WKing.getCurrSq()) ){
+          foundCheck1 = true;
+        }
+      }
+      p++;
+    }
+    P1.check(foundCheck1);// P1 in check just now
+    
+    // Same but for black
+    Piece BKing = P2.getPieces().get(0);
+    ArrayList<Piece>WPieces = P1.getPieces();
+    
+    while(!foundCheck2 && q<army){
+      aP = WPieces.get(q);
+      if(aP.active()){
+        if( aP.getMoves().contains(BKing.getCurrSq()) ){
+          foundCheck2 = true;
+        }
+      }
+      q++;
+    }
+    P2.check(foundCheck2);// P1 in check just now
+    
+    //println("for P1:",P1.KingInCheck); println("for P2:",P2.KingInCheck);
+    
+  }
+  
+  Player getPlayer(int attacker_piece_colour){// get the player using piece colur
+    //Player[] players = {null,null};
+    Player curr;
+    if(attacker_piece_colour==0){ //black attacking->black first
+      return P2; //players[1]=P2;
+
+    }else{
+      return P1; //players[0]=P2;
+    }
+  }
+  
+  boolean checkmate(Player player, ArrayList<Piece>attackers){ // arg: player in check(mate). Only when someone gets checked
+    Player winner;
+    
+    ArrayList<Piece> Defenders = player.getPieces();
+    Piece attackedKing = Defenders.get(0); int n = Defenders.size();
+    
+    Piece attacker;
+    
+    boolean mate = false;
+    
+    // 1) no king moves, including his own square
+    boolean has_no_moves = attackedKing.availableMoves()==0;
+    
+    
+    // 2) can CAPTURE attacker?
+    boolean self_def = false; // one of the defenders can kill the attacker
+    
+    // WILL DETERMINE IF WE CONTINUE
+    boolean cant_block_or_capture = attackers.size()>1; // need to move the king as block/cap of one does not protect against the other(AKA DOUBLE CHECK!)
+    //println(cant_block_or_capture);
+    
+    boolean can_block = false; // can also block, if just the one attack(same pinning problem but later)
+    
+    if(has_no_moves && cant_block_or_capture){// only do this if we need to-> if the king has moves, we stop
+      mate = true; // since cant move + attacked
+      
+    }else if(has_no_moves){
+      attacker = attackers.get(0); Sq attack_er = attacker.getCurrSq();
+      Piece P; ArrayList<Sq>Pmoves;
+      
+      // can def with attack
+      for(int p=1; p<n && !self_def; p++){ // start from Queen
+        P=Defenders.get(p); 
+        if(P.active()){
+          Pmoves = P.getMoves();
+          self_def = Pmoves.contains(attack_er); // small problem if piece is pinned but not bad[pinning problem solved below]
+          
+          
+          // Handling pins in self defense -> dont actual have self defense if the defender is pinned
+          if(self_def){
+            Sq defSq = Pmoves.get(0); int def_loc[] = defSq.get_matrix_loc();
+            
+            defSq.movedPiece();   // defender moves(and caps) to see if it is pinned   
+            game.cap(attacker, attack_er); int att_loc[] = attack_er.get_matrix_loc();
+            CBoard.squarePiece(att_loc[0], att_loc[1],P); 
+            
+            CBoard.update(); //my guess is no need because game.cap already updates, no
+            
+            if(player.inCheck()){ // if after update, king in check, then 1) cant make that move revert to 0G pos 2) revert back any pawn first moves 3)Reveert captures 4)Place back on OG squares
+              self_def=false; // cant actually def with capture with this piece as it is pinned
+              
+            }
+            
+            // always revervse effects
+            Sq newCurrSq = attack_er; // battleSq is attackers square
+            newCurrSq.movedPiece(); //1)
+            
+            if(P.getClass()==Pawn.class && P.startSq(def_loc[0], def_loc[1]) ){ // if it is a pawn that wsa improperly moved, let it have its first move buff again but only if it is reverted back to its START square
+              P.first_again(); // 2)
+            }
+            
+            
+            game.revcap(P, newCurrSq, false); //3) false-> not enPassant capture cases..may be another problem
+            
+            CBoard.squarePiece(def_loc[0], def_loc[1],P); // 4) 
+            CBoard.update(); //same as game.revcap
+          }
+          // PIN HANDLED ABOVE[CAPS]
+          
+          
+          
+        }
+      }
+      
+      // 3) (checking can_block) next and final check(s) BLOCKS but only if necessary
+      
+      if(!self_def){ // only do if need to, if self def is false after checking all move lists of defensers
+        ArrayList<Sq>path = attack_path(attacker, attackedKing); int path_length = path.size();
+        Sq pathSq;
+        for(int a=0; a<path_length && !can_block; a++){ // stop if find a defender that can block(can_block == true)
+          pathSq = path.get(a);
+          
+          for(int p=1; p<n && !can_block; p++){
+            P=Defenders.get(p); 
+            if(P.active()){
+              Pmoves = P.getMoves();
+              can_block = Pmoves.contains(pathSq); // pinning problem again
+              
+              // accounting for pins like in self def except this time, no capturing
+              if(can_block){
+                //println(P.getC(), P.getClass(), can_block);
+                
+                Sq defSq = Pmoves.get(0); int def_loc[] = defSq.get_matrix_loc();
+                //Sq move;
+                //for(int i=0; i<Pmoves.size(); i++){
+                //  move = Pmoves.get(i);
+                //  if(move.get_matrix_loc()[1]==def_loc[1] && move.get_matrix_loc()[0]>=def_loc[0]){
+                //    println(move.get_matrix_loc());
+                //  }
+                //}
+                defSq.movedPiece();   // defender moves(and caps) to see if it is pinned   
+                //game.cap(attacker, attack_er); int att_loc[] = attack_er.get_matrix_loc();
+                Sq blockade = pathSq; int pathSq_loc[] = pathSq.get_matrix_loc();
+                
+                
+                CBoard.squarePiece(pathSq_loc[0], pathSq_loc[1],P); 
+                CBoard.update(); // need update here because no caps
+                
+                
+                if(player.inCheck()){ // if after update, king in check, then 1) cant make that move revert to 0G pos 2) revert back any pawn first moves 3)Reveert captures 4)Place back on OG squares
+                  can_block=false; // cant actually block with this piece as it is pinned
+
+                  //game.revcap(P, newCurrSq, false); //3) no revcaps 
+                }
+                
+                // always rev effects, just checking
+                if(P.getClass()==Pawn.class && P.startSq(def_loc[0], def_loc[1]) ){ // if it is a pawn that wsa improperly moved, let it have its first move buff again but only if it is reverted back to its START square
+                    P.first_again(); // 2)
+                    //println(P.getN());
+                }
+                  
+                // need to return back to OG SQuare lol regardless of if in check
+                Sq newCurrSq = pathSq; // the pathSq is the sqaure the defender is currenly on to block checkmate(but cant sstay because pinned. Needs to go back to OG Sq)
+                newCurrSq.movedPiece(); //1)
+                  
+                CBoard.squarePiece(def_loc[0], def_loc[1],P); // 4) 
+                CBoard.update(); //no caps, need update
+              }
+              // PIN HANDLED ABOVE[BLOCKS]
+          
+            }
+     
+          }
+          
+          
+        }
+        if(can_block){
+          mate = false;
+          
+        }else{ // mate if cant block
+          mate = true;
+        }
+        
+      }else{
+        mate = false; // since a defender can kill attacker
+      }
+    }
+    
+    //println(has_no_moves,self_def,can_block, mate);
+    if(mate){
+      if(player==P1){
+        winner = P2;
+      }else{
+        winner = P1;
+      }
+      println(player.getName(),"mated");
+      
+    }else{
+      println("NOT mate:");
+      if(!has_no_moves){
+        println("can move");
+      }
+      
+      if(self_def){
+        println("can capture");
+      }
+      
+      if(can_block){
+        println("can block");
+      }
+    }
+    
+    return mate;
+  }
+
+  
+  boolean stalemate(Player player){ // player to play, stop search if stale is false
+    boolean stale;
+    ArrayList<Piece> Defenders = player.getPieces(); int n = Defenders.size();
+    Piece attackedKing = Defenders.get(0);
+    
+    Sq[][] S = CBoard.getSquares();
+    
+  
+    if(player==P1){
+      stale = attackedKing.availableMoves()==0 && !P2.attacked(attackedKing.getCurrSq(), S);
+  
+    }else{
+      stale = attackedKing.availableMoves()==0 && !P1.attacked(attackedKing.getCurrSq(), S);
+    }
+    
+    if(stale){ // so far stale still true, check other piece moes but stop onve stale is false-> any other active piece cen move
+      Piece P;
+      for(int p=0; p<n && stale; p++){
+        P = Defenders.get(p);
+        if(P.active()){
+          stale = !(P.availableMoves()>0);
+        }
+        
+      }
+    }
+    
+    if(stale){
+      println(player.getName(), "to play");
+      println("stalemate");
+    }
+    
+    return stale;
+  }
+  
+  
+  boolean player_canCastle(Player p, int pos[]){// P IS THE PLAYER who wants to castle, pos: the pos he moves the KING too
+ 
+    Sq[][]S = CBoard.getSquares();
+    
+    ArrayList<Piece> pieces = p.getPieces();
+    int x = pos[0]; int y = pos[1];
+    
+    int k_i = 0;
+    
+    // King info
+    Piece PKing = pieces.get(k_i);
+    int King_pos[] = PKing.getCurrSq().get_matrix_loc();
+    int King_pos_x = King_pos[0];
+    
+    
+    // determine which rook, get rooks postion/info
+    int diff = King_pos_x-x; // using given dir info from args
+    
+    Piece chosenR;
+    int r2_i = pieces.size()/2-1; int r1_i = r2_i-1;
+    // then get the rooks
+    Piece R1 = pieces.get(r1_i); Piece R2 = pieces.get(r2_i);
+  
+    if(diff > 0){ // LEFT ROOK(right of king for white, left for bacl)
+      chosenR = R1;
+    }else{ // RIGHT ROOK(left of king for white, right for black)
+      chosenR = R2;
+    }
+    int R_pos[] = chosenR.getCurrSq().get_matrix_loc();
+    int R_pos_x = R_pos[0];
+    
+    
+    
+    // the castle direction
+    int dir = King_pos_x-R_pos_x; 
+    int King_pos_y;
+    
+    // 1) CHECK IF SPACE BETWEEN KING AND ROOK CLEAR
+    // if dir>0 -> black: rook on king left, white: rook on king right
+    boolean clear = true;
+    
+    // 2) CHECK IF NONE OF THE SPACES BETWEEN KING AND ROOK(determine which side castle) ARE ATTACKED
+    boolean cut_off = false;
+    //println(dir,diff);
+    Sq currSq;
+    if( p.getC() == P1.getC() ){ //<-WHITE 
+      King_pos_y=0;
+      if(dir > 0){
+        while(dir>1 && clear && !cut_off){ // dir == 4
+          currSq = S[--dir][King_pos_y];
+          
+          clear = !currSq.hasPiece();
+          cut_off = P2.attacked(currSq,S);
+        }
+      }else{
+        while(dir<-1 && clear && !cut_off){ // dir == -3
+          currSq = S[King_pos_x+abs(++dir)][King_pos_y];
+          
+          clear = !currSq.hasPiece();
+          cut_off = P2.attacked(currSq,S);
+        }
+      }
+      
+    }else{ //<-BLACK
+      King_pos_y=7;
+      if(dir > 0){
+        while(dir>1 && clear && !cut_off){ // dir == 4
+          currSq = S[--dir][King_pos_y];
+          
+          clear = !currSq.hasPiece();
+          cut_off = P1.attacked(currSq,S);
+        }
+      }else{
+        while(dir<-1 && clear && !cut_off){ // dir == -3
+          currSq = S[King_pos_x+abs(++dir)][King_pos_y];
+          
+          clear = !currSq.hasPiece();
+          cut_off = P1.attacked(currSq,S);
+        } 
+      }
+      
+    }
+    
+    
+    
+    
+    
+    //
+    
+
+    
+    
+    // 3) CHECK IF IT IS THE ROOK && KING'S FIRST MOVE
+    
+    //to castle
+    /* a) has NOT already castled
+       b) clear path between rook and king
+       c) not cut_off by opponent
+       d) rook to castle hasn't made first move
+       e) king to castle hasnt made first move
+    */
+    
+    boolean can_castle = !p.hasCastled() && clear && !cut_off; // a,b,c
+    
+    
+    
+    can_castle = can_castle && !PKing.moved() && !chosenR.moved(); // d,e
+    //println(!p.hasCastled(), clear, !cut_off, !PKing.moved(), !chosenR.moved());
+    
+    
+    return can_castle;
+  }
+  
+  boolean can_EnPassantLeft(Piece pawn, int colour){ // P piece is a Pawn
+    boolean enPass = false;
+    
+    Sq[][] S = CBoard.getSquares();
+    
+    int[] pawn_m_loc =  pawn.getCurrSq().get_matrix_loc();
+    int pawn_x = pawn_m_loc[0]; int pawn_y = pawn_m_loc[1];
+    
+    //1) if on y3->Black Pawn, y4_. white pawn
+    boolean on_passant_row = false;
+    if(colour == 0){
+      on_passant_row = pawn_y == 3; // black
+    }else{
+      on_passant_row = pawn_y == 4; // white
+    }
+    
+    //2) left of/ right of has piece(can only be one) of opposite colur and piece is a pawn who has just jumped
+    // is left?
+    Sq l_s = null; 
+    if(pawn_x>0){l_s = S[pawn_x-1][pawn_y];} 
+    
+
+    boolean left_avail = l_s!=null && l_s.hasPiece() && l_s.getPiece().getClass()==Pawn.class && !sameC(pawn,l_s.getPiece()) && l_s.getPiece().just_jumped();
+    
+    
+    boolean offered = left_avail;
+    
+    enPass = on_passant_row && offered;
+    
+    //if(pawn_x>0 && pawn_x<7 && l_s.hasPiece()){
+    //  println("left",colour, on_passant_row, left_avail);
+    // }
+     
+     
+
+    return enPass;
+  }
+  boolean can_EnPassantRight(Piece pawn, int colour){ // P piece is a Pawn, colour of the pawn
+    boolean enPass = false;
+    
+    Sq[][] S = CBoard.getSquares();
+    
+    int[] pawn_m_loc =  pawn.getCurrSq().get_matrix_loc();
+    int pawn_x = pawn_m_loc[0]; int pawn_y = pawn_m_loc[1];
+    
+    //1) if on y3->Black Pawn, y4_. white pawn
+    boolean on_passant_row = false;
+    if(colour == 0){
+      on_passant_row = pawn_y == 3; // black
+    }else{
+      on_passant_row = pawn_y == 4; // white
+    }
+    
+    
+    //2) left of/ right of has piece(can only be one) of opposite colur and piece is a pawn who has just jumped
+    // is left?
+    Sq r_s = null;
+    if(pawn_x<7){r_s = S[pawn_x+1][pawn_y];}
+    
+    boolean right_avail = r_s!=null && r_s.hasPiece() && r_s.getPiece().getClass()==Pawn.class && !sameC(pawn,r_s.getPiece()) && r_s.getPiece().just_jumped();
+    
+    boolean offered = right_avail;
+    
+    enPass = on_passant_row && offered;
+    
+    if(pawn_x>0 && pawn_x<7 && r_s.hasPiece()){
+      //println("right",colour, on_passant_row, r_s.getPiece().just_jumped());
+     }
+     
+     
+    return enPass;
+  }
+  
+  Sq EnPassantSqLeft(Piece pawn, int colour){ // return the sqto enPassant LEFT
+    Sq EPSLeft;
+    
+    Sq[][] S = CBoard.getSquares();
+    
+    int[] pawn_m_loc =  pawn.getCurrSq().get_matrix_loc();
+    int pawn_x = pawn_m_loc[0]; int pawn_y = pawn_m_loc[1];
+    
+    //2) left of/ right of has piece(can only be one) of opposite colur and piece is a pawn who has just jumped
+    // is left?
+    Sq l_s = null; 
+    if(pawn_x>0){l_s = S[pawn_x-1][pawn_y];} 
+    
+
+    boolean left_avail = l_s!=null && l_s.hasPiece() && l_s.getPiece().getClass()==Pawn.class && !sameC(pawn,l_s.getPiece()) && l_s.getPiece().just_jumped();
+    //println("left is available;", left_avail);
+    if(left_avail){
+      if(colour==0){
+        EPSLeft = S[pawn_x-1][pawn_y-1];
+      }else{
+        EPSLeft = S[pawn_x-1][pawn_y+1]; // white's right
+      }
+    }else { // NO ENPASSANT?
+      EPSLeft = pawn.getCurrSq();
+    }
+    
+    
+    
+    return EPSLeft;
+  }
+  Sq EnPassantSqRight(Piece pawn, int colour){ // return the sqto enPassant RIGHT
+    Sq EPSRight;
+    
+    Sq[][] S = CBoard.getSquares();
+    
+    int[] pawn_m_loc =  pawn.getCurrSq().get_matrix_loc();
+    int pawn_x = pawn_m_loc[0]; int pawn_y = pawn_m_loc[1];
+    
+    //2) left of/ right of has piece(can only be one) of opposite colur and piece is a pawn who has just jumped
+    // is left?
+    Sq r_s = null;
+    if(pawn_x<7){r_s = S[pawn_x+1][pawn_y];}
+    
+    boolean right_avail = r_s!=null && r_s.hasPiece() && r_s.getPiece().getClass()==Pawn.class && !sameC(pawn,r_s.getPiece()) && r_s.getPiece().just_jumped();
+    
+    if(right_avail){
+      if(colour==0){
+        EPSRight = S[pawn_x+1][pawn_y-1];
+      }else{
+        EPSRight = S[pawn_x+1][pawn_y+1]; // white's left
+      }
+    }else { // NO ENPASSANT?
+      EPSRight = pawn.getCurrSq();
+    }
+    
+    return EPSRight;
+  }
+  void EnPassantCapLeft(Piece pawn, int colour){ // ONLY USE IF CAN ENPASSANT LEFT!!!
+    Sq[][] S = CBoard.getSquares();
+    
+    int[] pawn_m_loc =  pawn.getCurrSq().get_matrix_loc();
+    int pawn_x = pawn_m_loc[0]; int pawn_y = pawn_m_loc[1];
+    
+    //2) left of/ right of has piece(can only be one) of opposite colur and piece is a pawn who has just jumped
+    // is left?
+    Sq l_s = null; 
+    if(pawn_x>0){l_s = S[pawn_x-1][pawn_y];} 
+    
+
+    boolean left_avail = l_s!=null && l_s.hasPiece() && l_s.getPiece().getClass()==Pawn.class && !sameC(pawn,l_s.getPiece()) && l_s.getPiece().just_jumped();
+
+    if(left_avail){
+      game.cap(l_s.getPiece(),l_s);
+    }
+    
+    
+  }
+  void EnPassantCapRight(Piece pawn, int colour){ // ONLY USE IF CAN ENPASSANT RIGHT!!!
+    Sq[][] S = CBoard.getSquares();
+    
+    int[] pawn_m_loc =  pawn.getCurrSq().get_matrix_loc();
+    int pawn_x = pawn_m_loc[0]; int pawn_y = pawn_m_loc[1];
+    
+    //2) left of/ right of has piece(can only be one) of opposite colur and piece is a pawn who has just jumped
+    // is left?
+    Sq r_s = null;
+    if(pawn_x<7){r_s = S[pawn_x+1][pawn_y];}
+    
+    boolean right_avail = r_s!=null && r_s.hasPiece() && r_s.getPiece().getClass()==Pawn.class && !sameC(pawn,r_s.getPiece()) && r_s.getPiece().just_jumped();
+    
+    
+    if(right_avail){
+      r_s.getPiece().set_jump(false);
+      game.cap(r_s.getPiece(),r_s);
+    }
+    
+    
+  }
+  
+  
+  void clearEnPass(){ // clear all potential enpassants
+    Sq[][] S = CBoard.getSquares();
+    int g = CBoard.size();
+    Piece pawn; Sq square;
+    
+    for(int xi=0; xi<g; xi++){
+      for(int yi=0; yi<g; yi++){
+        
+        square = S[xi][yi];
+        if(square.hasPiece()){
+          pawn = square.getPiece(); 
+          
+          boolean Piece_is_pawn =  pawn.getClass()==Pawn.class;
+          if(Piece_is_pawn && pawn.active()){
+            pawn.set_jump(false);
+          }
+          
+        }
+        
+      }
+    }
+    
+    
+    
+  }
+  
+  ArrayList<Piece> offensive(Player attacking){
+    ArrayList<Piece> offense = new ArrayList<Piece>();
+    
+    ArrayList<Piece> potential = attacking.getPieces(); int n = potential.size();
+    Piece DKing; Sq target; // king on defensive 
+    
+    Piece P; 
+    if(attacking.getC()==0){// blackattack
+      DKing = P1.getPieces().get(0); target = DKing.getCurrSq();
+      for(int p=1; p<n; p++){
+        P = potential.get(p);
+        if(P.active() && P.getMoves().contains(target) ){
+            offense.add(P);
+        }
+      }
+      
+   
+    }else{// whiteattack
+      DKing = P2.getPieces().get(0); target = DKing.getCurrSq();
+      for(int p=1; p<n; p++){
+        P = potential.get(p);
+        if(P.active() && P.getMoves().contains(target) ){
+            offense.add(P);
+        }
+      }
+      
+    }
+    
+    
+    return offense;
+  }
+  
+  ArrayList<Sq> attack_path(Piece attacker, Piece attacked){
+    
+    ArrayList<Sq> a_path = new ArrayList<Sq>();
+    
+    Sq[][] S = CBoard.getSquares();
+    
+    Sq aSq = attacker.getCurrSq(); int aSq_coord[] = aSq.get_matrix_loc(); int a_x = aSq_coord[0]; int a_y = aSq_coord[1];
+    Sq dSq = attacked.getCurrSq(); int dSq_coord[] = dSq.get_matrix_loc(); int d_x = dSq_coord[0]; int d_y = dSq_coord[1];
+    
+    if( !(attacker.getClass()==Pawn.class || attacker.getClass()==Knight.class) ){ // if pawn, we done, if Knight, we aight
+      
+      // A ROOK ATTACKS
+      if(attacker.getClass()==Rook.class){
+        // check which of x/y is statinary
+        int diff;
+          if(a_x==d_x){ // y changing
+            diff = d_y-a_y;
+            if(diff>0){ // ^
+              while(diff>1){
+                a_path.add(S[a_x][a_y + (--diff)]); // also d_y - ...
+              }
+            }else{ // v
+              while(diff<-1){
+                a_path.add(S[a_x][a_y - abs(++diff)]); // also d_y + ...
+              }
+            }
+            
+          }else{ // x changing
+            diff = d_x-a_x;
+            if(diff>0){ // <
+              while(diff>1){ // ones because dont want the sq which the attacker/defende is on
+                a_path.add(S[a_x + (--diff)][a_y]); // also d_x - ...
+              }
+            }else{ // >
+              while(diff<-1){
+                a_path.add(S[a_x - abs(++diff)][a_y]); // also d_x + ...
+              }
+            }
+          }
+      
+        
+      // A BISHOP ATTACKS
+      }else if(attacker.getClass()==Bishop.class){
+        int x_diff = d_x - a_x; int y_diff = d_y - a_y;
+        
+          // to top left(bottom right start)
+          if(x_diff>0 && y_diff>0){
+            while(x_diff>1 && y_diff>1){
+              a_path.add(S[d_x - (--x_diff)][d_y - (--y_diff)]);  // also a_x +..., a_y +...
+            }
+            
+           // to top right(bottom left start)
+          }else if(x_diff<0 && y_diff>0){
+            while(x_diff<-1 && y_diff>1){
+              a_path.add(S[d_x + abs(++x_diff)][d_y - (--y_diff)]); // also a_x -..., a_y +...
+            }
+            
+           // to bottom left(start top right)
+          }else if(x_diff>0 && y_diff<0){
+            while(x_diff>1 && y_diff<-1){
+              a_path.add(S[d_x - (--x_diff)][d_y + abs(++y_diff)]);
+            }
+           // to bottom right(start top left)
+          }else if(x_diff<0 && y_diff<0){
+            while(x_diff<-1 && y_diff<-1){
+              a_path.add(S[d_x + abs(++x_diff)][d_y + abs(++y_diff)]);
+            }   
+          }
+      
+      
+      // THE QUEEN ATTACKS  
+      }else if(attacker.getClass()==Queen.class){
+        // either Rook or Bishop like attack
+        
+        boolean rook_attack = d_x==a_x || d_y==a_y; //ROOKATTACK
+        if(rook_attack){
+          int diff;
+          if(a_x==d_x){ // y changing
+            diff = d_y-a_y;
+            if(diff>0){ // ^
+              while(diff>1){
+                a_path.add(S[a_x][a_y + (--diff)]); // also d_y - ...
+              }
+            }else{ // v
+              while(diff<-1){
+                a_path.add(S[a_x][a_y - abs(++diff)]); // also d_y + ...
+              }
+            }
+            
+          }else{ // x changing
+            diff = d_x-a_x;
+            if(diff>0){ // <
+              while(diff>1){
+                a_path.add(S[a_x + (--diff)][a_y]); // also d_x - ...
+              }
+            }else{ // >
+              while(diff<-1){
+                a_path.add(S[a_x - abs(++diff)][a_y]); // also d_x + ...
+              }
+            }
+          }
+          // BISHOP AATACK
+        }else{
+          int x_diff = d_x - a_x; int y_diff = d_y - a_y;
+        
+          // to top left(bottom right start)
+          if(x_diff>0 && y_diff>0){
+            while(x_diff>1 && y_diff>1){
+              a_path.add(S[d_x - (--x_diff)][d_y - (--y_diff)]);  // also a_x +..., a_y +...
+            }
+            
+           // to top right(bottom left start)
+          }else if(x_diff<0 && y_diff>0){
+            while(x_diff<-1 && y_diff>1){
+              a_path.add(S[d_x + abs(++x_diff)][d_y - (--y_diff)]); // also a_x -..., a_y +...
+            }
+            
+           // to bottom left(start top right)
+          }else if(x_diff>0 && y_diff<0){
+            while(x_diff>1 && y_diff<-1){
+              a_path.add(S[d_x - (--x_diff)][d_y + abs(++y_diff)]);
+            }
+           // to bottom right(start top left)
+          }else if(x_diff<0 && y_diff<0){
+            while(x_diff<-1 && y_diff<-1){
+              a_path.add(S[d_x + abs(++x_diff)][d_y + abs(++y_diff)]);
+            }   
+          }
+          
+          
+        }
+        
+      }
+      
+      
+      
+    }
+    
+    /*
+    for(int i=0; i<a_path.size(); i++){
+      println(a_path.get(i).get_matrix_loc());
+    }
+    */
+    
+    return a_path;
+  }
+  
+  void I_M(){ // draw by insufficient material
+    boolean im = false;
+  
+    ArrayList<Piece>Wpieces = P1.getPieces(); 
+    ArrayList<Piece>Bpieces = P2.getPieces();
+    
+    int m =Wpieces.size(); // 16
+    int n = m/2; // 8
+    
+    boolean wK_alone = true; boolean bK_alone = true;
+    boolean w_oneB = false; boolean b_oneB = false;
+    boolean w_oneN = false; boolean b_oneN = false;
+    
+    boolean w_no_pawns = true; boolean b_no_pawns = true; 
+    boolean w_no_pieces = true; boolean b_no_pieces = true; 
+    
+    
+    // traverse all of white/black pieces, get all the above booleans
+    Piece P;
+    
+    //1)pawns
+    for(int p=n; p<m && w_no_pawns; p++){
+      P = Wpieces.get(p);
+      if(P.getClass()==Pawn.class) w_no_pawns = !P.active(); 
+    }
+    
+    //2)King alone
+    if(w_no_pawns){
+      for(int p=1; p<m && w_no_pieces; p++){
+        P = Wpieces.get(p);
+        if(P.getClass()!=Pawn.class) w_no_pieces = !P.active();
+      }
+    }
+    wK_alone = w_no_pawns && w_no_pieces;
+    
+    boolean others_capped = true; // will use for b and n
+    //3)1 Bishop with King
+    // get ALL the bishops, and if they are active
+    if(!wK_alone){ // only do if king is not alone
+      int bcount = 0;
+      for(int p=1; p<m && others_capped; p++){ // INDEX 2 is first bishop
+        P = Wpieces.get(p);
+        if(P.getClass()==Bishop.class && P.active()){
+          bcount++;
+        }else{
+          others_capped = !P.active();
+        }
+      }
+      if(others_capped){
+        w_oneB = bcount==1; // just one bishop is active
+      }else{
+        w_oneB = false;
+      }
+    }else{
+      w_oneB = false;
+    }
+
+    others_capped = true; // reset
+    //4)1 Knight with King, same process as with bishops
+    if(!wK_alone){
+      int ncount = 0;
+      for(int p=1; p<m && others_capped; p++){ // INDEX 4 is first Knight
+        P = Wpieces.get(p);
+        if(P.getClass()==Knight.class && P.active()){
+          ncount++;
+        }else{
+          others_capped = !P.active();
+        }
+      }
+      if(others_capped){
+        w_oneN = ncount==1; // just one knight is active
+      }else{
+        w_oneN = false; 
+      }
+    }else{
+      w_oneN = false;
+    }
+    
+    //SAME THING .. but for black
+    //1)pawns
+    for(int p=n; p<m && b_no_pawns; p++){
+      P = Bpieces.get(p);
+      if(P.getClass()==Pawn.class) b_no_pawns = !P.active();
+    }
+    
+    //2)King alone
+    if(b_no_pawns){
+      for(int p=1; p<m && b_no_pieces; p++){
+        P = Bpieces.get(p);
+        if(P.getClass()!=Pawn.class) b_no_pieces = !P.active();
+      }
+    }
+    bK_alone = b_no_pawns && b_no_pieces;
+    
+    others_capped = true;
+    //3)1 Bishop with King
+    // get ALL the bishops, and if they are active
+    if(!bK_alone){ // only do if king is not alone
+      int bcount2=0; 
+      for(int p=1; p<m && others_capped; p++){
+        P = Bpieces.get(p);
+        if(P.getClass()==Bishop.class && P.active()){
+          bcount2++;
+        }else{
+          others_capped = !P.active();
+        }
+      }
+      if(others_capped){
+        b_oneB = bcount2==1; // just one bishop is active
+      }else{
+        b_oneB = false;
+      }
+    }else{
+      b_oneB = false;
+    }
+
+    others_capped = true;
+    //4)1 Knight with King, same process as with bishops
+    if(!bK_alone){
+      int ncount2 = 0; 
+      for(int p=1; p<m && others_capped; p++){
+        P = Bpieces.get(p);
+        if(P.getClass()==Knight.class && P.active()){
+          ncount2++;
+        }else{
+          others_capped = !P.active();
+        }
+      }
+      if(others_capped){
+        b_oneN = ncount2==1; // just one knight is active
+      }else{
+        b_oneN = false;
+      }
+    }else{
+      b_oneN = false;
+    }
+    
+    // now, get all yhe cases of insufficient material
+    
+    
+    
+    boolean no_pawns = w_no_pawns && b_no_pawns; // at all 
+    boolean no_pieces = w_no_pieces && b_no_pieces; // no queen, bishop, knight or rook
+    
+    // Case 1
+    boolean KK =  no_pawns && no_pieces; //2 kings on the board alone -> can also be wk_alone && bk_alone
+    
+    // Case 2
+    boolean bKNK = wK_alone && b_oneN; // black king and knight, white king
+    boolean wKNK = bK_alone && w_oneN; // white king and knight, black king
+    
+    // Case 3
+    boolean bKBK = wK_alone && b_oneB;
+    boolean wKBK = bK_alone && w_oneB;
+    
+    im = (bKNK || wKNK) || (bKBK || wKBK) || KK;
+    
+    if(im){
+      println("DRAW! game ends due to insufficient material");
+    }
+    
+  }
+  
+  void setPromotionB(boolean pB){ // set if black is being promoted
+    promotionB = pB;
+  }
+  void setPromotionW(boolean pW){ // set if white is being promoted
+    promotionW = pW;
+  }
+  
+  void setPromoted(Piece pawn){ // set the pawn that is being promoted
+    promoted_pawn = pawn;
+  }
+  
+  boolean getPromotionB(){ // is black being promoted?
+    return promotionB;
+  }
+  boolean getPromotionW(){ // is white being promoted?
+    return promotionW;
+  }
+  
+  Piece promoted(){ // which pawn of which player and where is being promoted
+    return promoted_pawn;
+  }
+  
+
+  
+  void setPromotionSq(Sq square){
+    pSq = square;
+  }
+  Sq getPromotionSq(){
+    return pSq;
+  }
+  
+  void wasPromoted(boolean pro){
+    promoted = pro;
+  }
+  boolean get_wasPromoted(){
+    return promoted;
+  }
+  
+  ArrayList<float[]> pButtonsLoc(){ // to know the promotion button locations
+    ArrayList<float[]> button_locs = new ArrayList<float[]>();
+    
+    float[] Q = {0,0}; float[] B = {0,0}; float[] N = {0,0}; float[] R = {0,0};
+    float[] a={0,0};
+    
+    Sq promotionSq = getPromotionSq();
+    float n = promotionSq.getN();
+    float pSq_centre_coord[] = promotionSq.get_cent_coord();
+
+    float x = pSq_centre_coord[0]; 
+    float Qy,By,Ny,Ry,ay;
+    
+    if(promoted_pawn.getC()==0){ // black choice menu down board-> y goes up
+      Qy = pSq_centre_coord[1]; By = Qy+n; Ny = Qy+2*n; Ry = Qy+3*n; 
+      
+      ay = Qy+4*n;
+    }else{ // white choice menu up board-> y goes down
+      Qy = pSq_centre_coord[1]; By = Qy-n; Ny = Qy-2*n; Ry = Qy-3*n; 
+      
+      ay = Qy-4*n;
+    }
+    
+    Q[0]=x; B[0]=x; N[0]=x; R[0]=x;
+    Q[1]=Qy; B[1]=By; N[1]=Ny; R[1]=Ry;
+    
+    a[0]=x;
+    a[1]=ay;
+    
+    
+    button_locs.add(Q); button_locs.add(B); button_locs.add(N); button_locs.add(R); button_locs.add(a);
+    
+    return button_locs;
+  }
+  
+  int pButtonColor(){ // to know the button colours, and their changes
+    return pSq.getC();
+  }
+  
+  boolean promote(int d){ // yes the pawn has reachedits other side of the board
+    
+    Piece newP = null;
+    Piece P;
+    
+    ArrayList<Piece>WPieces = P1.getPieces();
+    ArrayList<Piece>BPieces = P2.getPieces();
+    int n=CBoard.size(); // 8 
+    int m = 2*n; //16
+    
+    
+    int pawn_matrix_loc[] = {0,0};
+    if(promotionW||promotionB){
+      pawn_matrix_loc = promoted_pawn.getCurrSq().get_matrix_loc(); 
+    }
+    int matrix_coord[] = pSq.get_matrix_loc(); int xi=matrix_coord[0]; int yi=matrix_coord[1];
+    float pixel_coord[] = pSq.get_cent_coord(); float x=pixel_coord[0]; float y=pixel_coord[1];
+    
+    //for soun quality
+    boolean capromote = false; // capture+promote
+    
+    // black promotion
+    if(promotionB){ 
+      //println("hrere");
+      switch(d){
+        case 0:
+          newP = new Queen(BQueenImage,x,y,black);
+          promoted = true;
+          break;
+        case 1:
+          println("bishop");
+          newP = new Bishop(BBishopImage,x,y,black);
+          promoted = true;
+          break;
+        case 2:
+          println("knight");
+          newP = new Knight(BKnightImage,x,y,black);
+          promoted = true;
+          break;
+        case 3:
+          println("rook");
+          newP = new Rook(BRookImage,x,y,black);
+          promoted = true;
+          break;
+        case 4:
+          showChoices=false; 
+          promoted = false;
+          break;
+      }
+      // switch out pawn
+      if(promoted){
+        int pawn_n = promoted_pawn.getN();
+
+        for(int p=n; p<m; p++){
+          P = BPieces.get(p);
+          if(P.getClass()==Pawn.class && P.getN()==pawn_n){
+            
+            // CAPTURES HANDLING included
+            if(pSq.hasPiece()){
+              Piece attacked = pSq.getPiece();
+              if(attacked.getClass()!=King.class){
+                cap(attacked,pSq); capromote = true;
+                P2.piecesUpdate(promoted_pawn,newP);
+            
+                CBoard.squarePiece(xi,yi,newP);
+              }else{
+                CBoard.squarePiece(pawn_matrix_loc[0],pawn_matrix_loc[1],promoted_pawn); // cant kill a king?
+              }
+              
+            // regular, no caps
+            }else{
+              P2.piecesUpdate(promoted_pawn,newP);
+            
+              CBoard.squarePiece(xi,yi,newP);    
+            }
+            
+            //println(newP.active(),pSq.hasPiece(),pSq.getPiece().getClass());
+            break;
+          }
+        }
+        
+        //housekeeping
+        updateReg(newP);
+        
+        
+      }else if(!promoted){
+        println("no");
+        CBoard.squarePiece(pawn_matrix_loc[0],pawn_matrix_loc[1],promoted_pawn);
+      }
+      
+      
+    // WHITE PAWN PROMOTION
+    }else if(promotionW){
+      switch(d){
+        case 0:
+          newP = new Queen(WQueenImage,x,y,white);
+          promoted = true;
+          break;
+        case 1:
+          newP = new Bishop(WBishopImage,x,y,white);
+          promoted = true;
+          break;
+        case 2:
+          newP = new Knight(WKnightImage,x,y,white);
+          promoted = true;
+          break;
+        case 3:
+          newP = new Rook(WRookImage,x,y,white);
+          promoted = true;
+          break;
+        case 4:
+          //println("close");
+          showChoices=false; 
+          promoted = false;
+          break;
+      }
+      // switch out pawn for new piece
+      if(promoted){
+        int pawn_n = promoted_pawn.getN();
+        
+        for(int p=n; p<m; p++){
+          P = BPieces.get(p);
+          if(P.getClass()==Pawn.class && P.getN()==pawn_n){
+            
+            // CAPTURES HANDLING included
+            if(pSq.hasPiece()){
+              Piece attacked = pSq.getPiece();
+              if(attacked.getClass()!=King.class){
+                cap(attacked,pSq); capromote = true;
+                P1.piecesUpdate(promoted_pawn,newP);
+            
+                CBoard.squarePiece(xi,yi,newP);
+              }else{
+                CBoard.squarePiece(pawn_matrix_loc[0],pawn_matrix_loc[1],promoted_pawn); // cant kill a king?
+              }
+              
+            // regular, no caps
+            }else{
+              P1.piecesUpdate(promoted_pawn,newP);
+            
+              CBoard.squarePiece(xi,yi,newP);    
+            }
+            
+            //println(newP.active(),pSq.hasPiece(),pSq.getPiece().getClass());
+            break;
+          }
+        }
+        
+        //housekeeping
+        updateReg(newP);
+        
+        
+      }else if(!promoted){
+        println("no");
+        CBoard.squarePiece(pawn_matrix_loc[0],pawn_matrix_loc[1],promoted_pawn);
+      }
+      
+    }
+    
+    
+    
+    
+    CBoard.update();
+    
+    // checking cjhecls
+    if(P1.inCheck()){// still in check
+      // get attackers
+      ArrayList<Piece> KingAttackers = offensive(P2);
+      game.checkmate(P1, KingAttackers); // return a boolean for sounds, and maybe more
+    }else if(P2.inCheck()){// still in check
+      // get attackers
+      ArrayList<Piece> KingAttackers = offensive(P1);
+      game.checkmate(P2, KingAttackers); // return a boolean for sounds, and maybe more
+    }
+    
+    promoted_pawn=null;
+    //pSq=null;
+    promotionW=false; promotionB=false;
+     
+    //to=5; // global var
+    
+    // cap sounds
+    if(capromote){
+      capture.play();
+    }
+    
+    upMoves(); // housekeeping
+    return promoted;
+  }
+  
+  
+  
+}

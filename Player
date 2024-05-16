@@ -1,0 +1,210 @@
+class Player{
+  // for identification
+  int n;
+  String name;
+  int colour;
+  
+  // for playing
+  ArrayList<Piece> Pieces; // will be given to player upon init
+  ArrayList<Piece> captured = new ArrayList<Piece>();
+  
+  boolean KingInCheck = false;
+  
+  boolean castled = false;
+  boolean canCastle = true;
+  
+  boolean win;
+  
+  Player(int n_, ArrayList<Piece>Plist){
+    
+    n = n_;
+    Pieces = Plist;
+    
+    colour = Pieces.get(0).getC();
+    
+    if(n==1){
+      name = "black player";
+    }else{
+      name = "white player";
+    }
+  }
+  
+  int getC(){
+    return colour;
+  }
+  
+  void add_prisoner(Piece P){
+    if(P.getC() != colour){
+      captured.add(P);
+    }
+    /*
+    println(n+"'s"+"prisoners");
+    for(int i = 0; i<captured.size(); i++){
+      println(captured.get(i).getClass().getName());
+    }
+    */
+  }
+  
+  void lostSoldier(Piece P_){
+    /*
+    if(Pieces.contains(P_)){
+      //Pieces.remove(Pieces.indexOf(P_));
+      Pieces.remove(Pieces.indexOf(P_));
+    }
+    */
+    if(Pieces.contains(P_)){
+      P_.setCapture(true);
+    }
+    
+    /*
+    println(n+"'s"+"pieces");
+    for(int i = 0; i<Pieces.size(); i++){
+      println(Pieces.get(i).getClass().getName());
+    }
+    */
+    
+    
+  }
+  
+  // ANTAGONIST OF ABOVE TWO
+  Piece release_prisoner(){// free the last prisoner
+    Piece r;
+    r = captured.get(captured.size()-1);
+    captured.remove(captured.size()-1);
+    
+    return r;
+  }
+  
+  void returnedSoldier(Piece P_){
+    P_.setCapture(false);    
+  }
+  
+  ArrayList<Piece> getPieces(){
+    return Pieces;
+  }
+  
+  void check(boolean checked){
+    KingInCheck = checked;
+  }
+  
+  boolean inCheck(){
+    return KingInCheck;
+  }
+  
+  String getName(){
+    return name;
+  }
+  
+  // determine if a square is attacked by this player
+  boolean attacked(Sq square, Sq[][] S){
+    boolean A = false;
+    Piece P; ArrayList<Sq> moves;
+    
+    int n = Pieces.size();
+    for(int i=0; i<n && !A; i++){
+      P = Pieces.get(i);
+      if(P.active()){
+        if(P.getClass() != Pawn.class){
+          moves = P.getMoves();
+          if(moves.contains(square)){
+            A = moves.indexOf(square)!=0; // cant be the pieces own sq
+          }
+        }else{// even a pawn attacks a King
+          int Pcoord [] = P.getCurrSq().get_matrix_loc();
+          int xi = Pcoord[0]; int yi = Pcoord[1];
+          
+          
+          if(colour!=0){
+            //WHITE
+            if(xi-1>=0 && yi+1<S.length){//white right
+              A = square == S[xi-1][yi+1]; 
+            }
+            if( !A && (xi+1<S.length && yi+1<S.length)){//white left
+              A = square == S[xi+1][yi+1];
+            }
+            
+          }else{
+            //BLACK
+            if(xi-1>=0 && yi-1>=0){//black left
+               A = square == S[xi-1][yi-1];  
+            }
+            if( !A && (xi+1<S.length && yi-1>=0)){//black right
+                A = square == S[xi+1][yi-1];
+            }
+          }
+
+
+        }
+        
+        
+      }
+    }
+    
+    
+    return A;
+  }
+  
+  boolean hasCastled(){
+    return castled;
+  }
+  
+  // self explanatory
+  void castle(Board B, int[] pos){ // pos of castling player selected, will be one square(to left/right) outside of Kings regular available squares
+    int x = pos[0]; int y = pos[1];
+    Sq[][] S = B.getSquares();
+    
+    // first, get rook postion
+    // determine which rook, check if has made firsr move
+    Piece PKing = Pieces.get(0);
+    
+    // get castle dir
+    int King_pos[] = PKing.getCurrSq().get_matrix_loc();
+    int King_pos_x = King_pos[0];
+    
+    int dir = King_pos_x-x; 
+    int King_pos_y;
+    
+    Piece chosenR;
+    int r_i;
+    int r2_i = Pieces.size()/2-1; int r1_i = r2_i-1;
+    // then get the rooks
+    Piece R1 = Pieces.get(r1_i); Piece R2 = Pieces.get(r2_i);
+  
+    if(dir > 0){ // LEFT ROOK(right of king for white, left for bacl)
+      chosenR = R1;
+      r_i = r1_i;
+    }else{ // RIGHT ROOK(left of king for white, right for black)
+      chosenR = R2;
+      r_i = r2_i;
+    }
+    println(Pieces.get(r_i).getClass());
+    
+    // place king on the square user decided, rook goes to the right of king(if left side) and vice versa
+    Pieces.get(0).getCurrSq().movedPiece();
+    Pieces.get(r_i).getCurrSq().movedPiece();
+    if(dir > 0){ // left side
+      B.squarePiece(x,y,Pieces.get(0));
+      B.squarePiece(x+1,y,Pieces.get(r_i));
+    }else{ // right side
+      B.squarePiece(x,y,Pieces.get(0));
+      B.squarePiece(x-1,y,Pieces.get(r_i));
+    }
+    
+    castled = true; canCastle = false;
+    Pieces.get(0).first_moved(); Pieces.get(r_i).first_moved();
+    
+    
+    
+  }
+  
+  void piecesUpdate(Piece pawn, Piece newP){
+    pawn.out();
+    Pieces.set(Pieces.indexOf(pawn),newP);
+    //BPieces_Finalposes.set(Pieces.indexOf(pawn),game.getPromotionSq().get_cent_coord());
+    //for(int i=0; i<16; i++){
+    //  println(Pieces.get(i).getClass());
+    //}
+  }
+  
+  
+}
